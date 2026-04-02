@@ -61,7 +61,7 @@ class Lab5Frame(ctk.CTkFrame):
     def gen_keys(self):
         folder = filedialog.askdirectory(title="Select folder for DSA keys")
         if folder:
-            priv, pub = self.sig_service.generate_dsa_keys(folder)
+            _, _ = self.sig_service.generate_dsa_keys(folder)
             messagebox.showinfo("Success", f"Keys saved to:\n{folder}")
 
     def sign_text(self):
