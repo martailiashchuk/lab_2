@@ -28,50 +28,51 @@ class RC5Service:
         key = hhp + hp
 
         c = self.b // self.w_bytes
-        L = list(struct.unpack('<4Q', key))
+        l_arr = list(struct.unpack('<4Q', key))
 
-        S = [0] * self.t
-        S[0] = self.P
+        s_table = [0] * self.t
+        s_table[0] = self.P
         for i in range(1, self.t):
-            S[i] = (S[i - 1] + self.Q) & self.mask
+            s_table[i] = (s_table[i - 1] + self.Q) & self.mask
 
         i = j = a = b = 0
         for _ in range(3 * max(c, self.t)):
-            a = S[i] = self._rotate_left((S[i] + a + b) & self.mask, 3)
-            b = L[j] = self._rotate_left((L[j] + a + b) & self.mask, (a + b))
+            a = s_table[i] = self._rotate_left((s_table[i] + a + b) & self.mask, 3)
+            b = l_arr[j] = self._rotate_left((l_arr[j] + a + b) & self.mask, (a + b))
             i = (i + 1) % self.t
             j = (j + 1) % c
-        return S
+        return s_table
 
-    def _encrypt_block(self, data, S):
+    def _encrypt_block(self, data, s_table):
         a, b = struct.unpack('<2Q', data)
-        a = (a + S[0]) & self.mask
-        b = (b + S[1]) & self.mask
+        a = (a + s_table[0]) & self.mask
+        b = (b + s_table[1]) & self.mask
         for i in range(1, self.r + 1):
-            a = (self._rotate_left(a ^ b, b) + S[2 * i]) & self.mask
-            b = (self._rotate_left(b ^ a, a) + S[2 * i + 1]) & self.mask
+            a = (self._rotate_left(a ^ b, b) + s_table[2 * i]) & self.mask
+            b = (self._rotate_left(b ^ a, a) + s_table[2 * i + 1]) & self.mask
         return struct.pack('<2Q', a, b)
 
-    def _decrypt_block(self, data, S):
+    def _decrypt_block(self, data, s_table):
         a, b = struct.unpack('<2Q', data)
         for i in range(self.r, 0, -1):
-            b = self._rotate_right((b - S[2 * i + 1]) & self.mask, a) ^ a
-            a = self._rotate_right((a - S[2 * i]) & self.mask, b) ^ b
-        a = (a - S[0]) & self.mask
-        b = (b - S[1]) & self.mask
+            b = self._rotate_right((b - s_table[2 * i + 1]) & self.mask, a) ^ a
+            a = self._rotate_right((a - s_table[2 * i]) & self.mask, b) ^ b
+        a = (a - s_table[0]) & self.mask
+        b = (b - s_table[1]) & self.mask
         return struct.pack('<2Q', a, b)
 
     def encrypt_file(self, in_p, out_p, pw, md5_s, lcg_s):
-        S = self._expand_key(pw, md5_s)
+        s_table = self._expand_key(pw, md5_s)
         nums = lcg_s.generate(4)
         iv = struct.pack('<4I', *[x & 0xFFFFFFFF for x in nums])
 
         with open(in_p, 'rb') as f_in, open(out_p, 'wb') as f_out:
-            f_out.write(self._encrypt_block(iv, S))
+            f_out.write(self._encrypt_block(iv, s_table))
             prev = iv
             while True:
                 chunk = f_in.read(16)
-                if not chunk: break
+                if not chunk:
+                    break
                 padding = False
                 if len(chunk) < 16:
                     p_len = 16 - len(chunk)
@@ -79,27 +80,28 @@ class RC5Service:
                     padding = True
 
                 xor_data = bytes(x ^ y for x, y in zip(chunk, prev))
-                encrypted = self._encrypt_block(xor_data, S)
+                encrypted = self._encrypt_block(xor_data, s_table)
                 f_out.write(encrypted)
                 prev = encrypted
-                if padding: break
+                if padding:
+                    break
 
             if len(chunk) == 16 and not padding:
                 chunk = bytes([16] * 16)
                 xor_data = bytes(x ^ y for x, y in zip(chunk, prev))
-                f_out.write(self._encrypt_block(xor_data, S))
+                f_out.write(self._encrypt_block(xor_data, s_table))
 
     def decrypt_file(self, in_p, out_p, pw, md5_s):
-        S = self._expand_key(pw, md5_s)
+        s_table = self._expand_key(pw, md5_s)
         with open(in_p, 'rb') as f_in:
             iv_enc = f_in.read(16)
-            iv = self._decrypt_block(iv_enc, S)
+            iv = self._decrypt_block(iv_enc, s_table)
             data = f_in.read()
 
         res, prev = b"", iv
         for i in range(0, len(data), 16):
             curr = data[i:i + 16]
-            dec = self._decrypt_block(curr, S)
+            dec = self._decrypt_block(curr, s_table)
             res += bytes(x ^ y for x, y in zip(dec, prev))
             prev = curr
 
