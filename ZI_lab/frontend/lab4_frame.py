@@ -8,14 +8,12 @@ class Lab4Frame(ctk.CTkFrame):
         super().__init__(master, fg_color="#1E1B2E")
         self.rsa = rsa_service
 
-        # Кнопка назад та заголовок
         ctk.CTkButton(self, text="← Menu", command=on_back,
                       fg_color="#7B2CBF", hover_color="#9D4EDD", width=80).pack(anchor="nw", padx=20, pady=10)
 
         ctk.CTkLabel(self, text="Lab 4: RSA Asymmetric Encryption",
                      font=("Arial", 22, "bold"), text_color="#E0AAFF").pack(pady=5)
 
-        # 1. Секція керування ключами
         key_frame = ctk.CTkFrame(self, fg_color="#2A2438")
         key_frame.pack(pady=10, padx=20, fill="x")
 
@@ -23,21 +21,17 @@ class Lab4Frame(ctk.CTkFrame):
         ctk.CTkButton(key_frame, text="Generate & Save RSA Keys",
                       command=self.handle_generate, fg_color="#5A189A", hover_color="#7B2CBF", width=300).pack(pady=10)
 
-        # 2. Секція операцій (Шифрування/Дешифрування)
         ops_frame = ctk.CTkFrame(self, fg_color="#2A2438")
         ops_frame.pack(pady=10, padx=20, fill="x")
 
         ctk.CTkLabel(ops_frame, text="File Operations", font=("Arial", 14, "bold"), text_color="#C77DFF").pack(pady=5)
 
-        # Кнопка шифрування
         ctk.CTkButton(ops_frame, text="Encrypt File (with Public Key)",
                       command=self.handle_encrypt, fg_color="#7B2CBF", hover_color="#9D4EDD", width=300).pack(pady=10)
 
-        # Кнопка дешифрування
         ctk.CTkButton(ops_frame, text="Decrypt File (with Private Key)",
                       command=self.handle_decrypt, fg_color="#3C096C", hover_color="#5A189A", width=300).pack(pady=10)
 
-        # Статус-бар
         status_frame = ctk.CTkFrame(self, fg_color="#161426", height=40)
         status_frame.pack(side="bottom", fill="x", padx=20, pady=20)
 
@@ -51,16 +45,18 @@ class Lab4Frame(ctk.CTkFrame):
                 priv, pub = self.rsa.save_keys_to_dir(folder)
                 self.status.configure(text="Status: Keys Generated Successfully", text_color="#00FF41")
                 messagebox.showinfo("Готово", f"RSA Ключі збережено:\n1. {priv}\n2. {pub}")
-            except Exception as e:
-                messagebox.showerror("Error", f"Помилка генерації: {e}")
+            except Exception:
+                messagebox.showerror("Error", "Помилка генерації ключів.")
 
     def handle_encrypt(self):
         target_file = filedialog.askopenfilename(title="Виберіть файл для шифрування")
-        if not target_file: return
+        if not target_file:
+            return
 
         key_file = filedialog.askopenfilename(title="Виберіть ПУБЛІЧНИЙ ключ (public_key.pem)",
                                               filetypes=[("PEM files", "*.pem")])
-        if not key_file: return
+        if not key_file:
+            return
 
         try:
             start = time.time()
@@ -74,11 +70,13 @@ class Lab4Frame(ctk.CTkFrame):
 
     def handle_decrypt(self):
         target_file = filedialog.askopenfilename(title="Виберіть .rsa файл")
-        if not target_file: return
+        if not target_file:
+            return
 
         key_file = filedialog.askopenfilename(title="Виберіть ПРИВАТНИЙ ключ (private_key.pem)",
                                               filetypes=[("PEM files", "*.pem")])
-        if not key_file: return
+        if not key_file:
+            return
 
         try:
             start = time.time()
@@ -86,6 +84,6 @@ class Lab4Frame(ctk.CTkFrame):
             elapsed = time.time() - start
             self.status.configure(text=f"Status: Decrypted in {elapsed:.4f}s", text_color="#00FF41")
             messagebox.showinfo("Успіх", f"Файл розшифровано: {res}")
-        except Exception as e:
+        except Exception:
             self.status.configure(text="Status: Decryption Error", text_color="#FF4B2B")
             messagebox.showerror("Помилка", "Не вдалося розшифрувати. Перевірте, чи це правильний RSA-ключ.")
