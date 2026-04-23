@@ -25,14 +25,15 @@ class Lab3Frame(ctk.CTkFrame):
 
     def encrypt(self):
         pw = self.pass_entry.get()
-        if not pw: return
+        if not pw:
+            return
         path = filedialog.askopenfilename()
         if path:
             try:
                 self.rc5.encrypt_file(path, path + ".enc", pw, self.md5, self.lcg)
                 messagebox.showinfo("Success", "File encrypted!")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed: {e}")
+                messagebox.showerror("Error", f"Failed to encrypt: {e}")
 
     def decrypt(self):
         pw = self.pass_entry.get()
@@ -41,5 +42,5 @@ class Lab3Frame(ctk.CTkFrame):
             try:
                 self.rc5.decrypt_file(path, path.replace(".enc", ".dec"), pw, self.md5)
                 messagebox.showinfo("Success", "File decrypted successfully!")
-            except:
-                messagebox.showerror("Error", "Check your password!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Decryption failed. Check your password! \n({e})")
