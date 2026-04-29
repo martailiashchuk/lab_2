@@ -30,44 +30,44 @@ class RC5Service:
         c = self.b // self.w_bytes
         l_arr = list(struct.unpack('<4Q', key))
 
-        s_table = [0] * self.t
-        s_table[0] = self.P
+        s = [0] * self.t
+        s[0] = self.P
         for i in range(1, self.t):
-            s_table[i] = (s_table[i - 1] + self.Q) & self.mask
+            s[i] = (s[i - 1] + self.Q) & self.mask
 
         i = j = a = b = 0
         for _ in range(3 * max(c, self.t)):
-            a = s_table[i] = self._rotate_left((s_table[i] + a + b) & self.mask, 3)
+            a = s[i] = self._rotate_left((s[i] + a + b) & self.mask, 3)
             b = l_arr[j] = self._rotate_left((l_arr[j] + a + b) & self.mask, (a + b))
             i = (i + 1) % self.t
             j = (j + 1) % c
-        return s_table
+        return s
 
-    def _encrypt_block(self, data, s_table):
+    def _encrypt_block(self, data, s):
         a, b = struct.unpack('<2Q', data)
-        a = (a + s_table[0]) & self.mask
-        b = (b + s_table[1]) & self.mask
+        a = (a + s[0]) & self.mask
+        b = (b + s[1]) & self.mask
         for i in range(1, self.r + 1):
-            a = (self._rotate_left(a ^ b, b) + s_table[2 * i]) & self.mask
-            b = (self._rotate_left(b ^ a, a) + s_table[2 * i + 1]) & self.mask
+            a = (self._rotate_left(a ^ b, b) + s[2 * i]) & self.mask
+            b = (self._rotate_left(b ^ a, a) + s[2 * i + 1]) & self.mask
         return struct.pack('<2Q', a, b)
 
-    def _decrypt_block(self, data, s_table):
+    def _decrypt_block(self, data, s):
         a, b = struct.unpack('<2Q', data)
         for i in range(self.r, 0, -1):
-            b = self._rotate_right((b - s_table[2 * i + 1]) & self.mask, a) ^ a
-            a = self._rotate_right((a - s_table[2 * i]) & self.mask, b) ^ b
-        a = (a - s_table[0]) & self.mask
-        b = (b - s_table[1]) & self.mask
+            b = self._rotate_right((b - s[2 * i + 1]) & self.mask, a) ^ a
+            a = self._rotate_right((a - s[2 * i]) & self.mask, b) ^ b
+        a = (a - s[0]) & self.mask
+        b = (b - s[1]) & self.mask
         return struct.pack('<2Q', a, b)
 
     def encrypt_file(self, in_p, out_p, pw, md5_s, lcg_s):
-        s_table = self._expand_key(pw, md5_s)
+        s = self._expand_key(pw, md5_s)
         nums = lcg_s.generate(4)
         iv = struct.pack('<4I', *[x & 0xFFFFFFFF for x in nums])
 
         with open(in_p, 'rb') as f_in, open(out_p, 'wb') as f_out:
-            f_out.write(self._encrypt_block(iv, s_table))
+            f_out.write(self._encrypt_block(iv, s))
             prev = iv
             while True:
                 chunk = f_in.read(16)
@@ -92,7 +92,7 @@ class RC5Service:
                 f_out.write(self._encrypt_block(xor_data, s_table))
 
     def decrypt_file(self, in_p, out_p, pw, md5_s):
-        s_table = self._expand_key(pw, md5_s)
+        s = self._expand_key(pw, md5_s)
         with open(in_p, 'rb') as f_in:
             iv_enc = f_in.read(16)
             iv = self._decrypt_block(iv_enc, s_table)
@@ -101,7 +101,7 @@ class RC5Service:
         res, prev = b"", iv
         for i in range(0, len(data), 16):
             curr = data[i:i + 16]
-            dec = self._decrypt_block(curr, s_table)
+            dec = self._decrypt_block(curr, s)
             res += bytes(x ^ y for x, y in zip(dec, prev))
             prev = curr
 
